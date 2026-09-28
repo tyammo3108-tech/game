@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vũ Trụ Hóa Học - Sinh Tồn 20 Nguyên Tố</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js cho âm thanh -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Font & Icon -->
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            margin: 0; padding: 0; min-height: 100vh;
+            /* Nền sáng, kẹo ngọt, vui nhộn */
+            background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
+            background-size: 200% 200%;
+            animation: gradientBG 10s ease infinite;
+            color: #334155; display: flex; flex-direction: column; align-items: center; overflow-x: hidden;
+        }
+
+        @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+
+        /* Họa tiết chấm bi động (thay cho các vì sao) */
+        .polka-dots {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0;
+            background-image: radial-gradient(rgba(255,255,255,0.4) 3px, transparent 3px);
+            background-size: 40px 40px;
+            animation: floatDots 30s linear infinite;
+        }
+        @keyframes floatDots { 0% { background-position: 0 0; } 100% { background-position: 400px 400px; } }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(20px);
+            border: 3px solid rgba(255, 255, 255, 0.5); border-radius: 30px;
+            width: 95%; max-width: 900px;
+            box-shadow: 0 20px 50px rgba(161, 140, 209, 0.4), inset 0 0 20px rgba(255,255,255,0.8);
+            margin: 20px 0 40px 0; z-index: 10; position: relative; overflow: hidden;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #a18cd1, #fbc2eb); border: none; color: white;
+            padding: 16px 32px; font-size: 1.2rem; font-weight: 800; border-radius: 20px;
+            cursor: pointer; box-shadow: 0 8px 20px rgba(161, 140, 209, 0.5);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        .btn:hover:not(:disabled) {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 12px 25px rgba(161, 140, 209, 0.6);
+        }
+
+        /* Tùy chỉnh nút đáp án */
+        .option-btn {
+            background: #ffffff; border: 3px solid #e2e8f0;
+            color: #475569; padding: 20px; border-radius: 20px; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 700; text-align: left; display: flex; align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+        .option-btn:hover:not(:disabled) { background: #f8fafc; border-color: #a18cd1; transform: translateY(-3px); box-shadow: 0 8px 15px rgba(161, 140, 209, 0.15); }
+        .option-btn.correct { background: #dcfce7 !important; border-color: #4ade80 !important; color: #166534 !important; box-shadow: 0 0 20px rgba(74, 222, 128, 0.4) !important; }
+        .option-btn.wrong { background: #fee2e2 !important; border-color: #f87171 !important; color: #991b1b !important; }
+
+        /* Style cho Kỹ năng (Power-ups) */
+        .powerup-btn {
+            width: 60px; height: 60px; border-radius: 50%; border: 3px solid white;
+            display: flex; justify-content: center; align-items: center; font-size: 1.5rem;
+            color: white; cursor: pointer; transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15); position: relative;
+        }
+        .powerup-btn:hover:not(.used) { transform: translateY(-5px) scale(1.1); }
+        .powerup-btn.used { background: #cbd5e1 !important; color: #94a3b8 !important; cursor: not-allowed; box-shadow: none; transform: scale(0.9); }
+        .powerup-btn::after {
+            content: attr(data-tip); position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.7); color: white; padding: 4px 8px; border-radius: 6px;
+            font-size: 12px; font-weight: bold; white-space: nowrap; opacity: 0; pointer-events: none; transition: 0.3s;
+        }
+        .powerup-btn:hover::after { opacity: 1; bottom: -35px; }
+        
+        .pu-5050 { background: linear-gradient(135deg, #f6d365, #fda085); }
+        .pu-shield { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+        .pu-hint { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+
+        /* Trạng thái kích hoạt khiên */
+        .shield-active-glow {
+            animation: shieldPulse 1.5s infinite alternate;
+            border-color: #4facfe !important;
+        }
+        @keyframes shieldPulse {
+            0% { box-shadow: 0 0 10px rgba(79, 172, 254, 0.4), inset 0 0 10px rgba(79, 172, 254, 0.1); }
+            100% { box-shadow: 0 0 30px rgba(79, 172, 254, 0.8), inset 0 0 20px rgba(79, 172, 254, 0.3); }
+        }
+
+        /* Hiệu ứng mất máu */
+        #damage-overlay {
+            position: fixed; inset: 0; background: red; opacity: 0; pointer-events: none; z-index: 9999;
+            transition: opacity 0.2s;
+        }
+        .shake-animation { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-8px, 0, 0); }
+            40%, 60% { transform: translate3d(8px, 0, 0); }
+        }
+
+        .heart-icon { transition: all 0.3s; }
+        .heart-lost { color: #cbd5e1 !important; transform: scale(0.8); filter: grayscale(1); }
+
+        /* Tiêu đề Glow */
+        .title-font { font-family: 'Quicksand', sans-serif; }
+        .title-glow {
+            text-shadow: 2px 2px 0px white, -2px -2px 0px white, 2px -2px 0px white, -2px 2px 0px white, 0 5px 15px rgba(161, 140, 209, 0.6);
+        }
+
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Pháo giấy (Confetti) */
+        .confetti-container { position: fixed; inset: 0; pointer-events: none; z-index: 9999; overflow: hidden; }
+        .confetti-x { position: absolute; bottom: -20px; right: -20px; animation: shootX var(--dur) cubic-bezier(0.12, 1, 0.3, 1) forwards; }
+        .confetti-y { animation: shootY var(--dur) ease-in-out forwards; }
+        @keyframes shootX { 0% { transform: translateX(0); } 100% { transform: translateX(calc(-1 * var(--endX))); } }
+        @keyframes shootY {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            45% { transform: translateY(calc(-1 * var(--peakY))) rotate(calc(var(--rot) / 2)); opacity: 1; }
+            100% { transform: translateY(12vh) rotate(var(--rot)); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="polka-dots"></div>
+<div id="damage-overlay"></div>
+
+<main class="w-full flex justify-center px-4 z-10 flex-1 items-center">
+    <div class="game-container w-full min-h-[600px] flex flex-col" id="main-container">
+        
+        <!-- MÀN HÌNH BẮT ĐẦU -->
+        <div id="start-screen" class="flex-1 flex flex-col items-center justify-center p-8 md:p-12 text-center fade-in">
+            <div class="w-32 h-32 bg-white rounded-full flex items-center justify-center border-4 border-pink-300 shadow-xl mb-6 relative">
+                <i class="fas fa-flask text-6xl text-purple-400 animate-bounce"></i>
+            </div>
+            
+            <h1 class="title-font text-4xl md:text-5xl font-black text-purple-600 uppercase title-glow mb-4">
+                THỬ THÁCH SINH TỒN
+            </h1>
+            
+            <p class="text-slate-600 text-lg md:text-xl max-w-2xl mb-8 font-bold">
+                20 Câu hỏi - 3 Trái tim - 3 Thẻ bài hỗ trợ.<br>
+                Bạn có đủ sức vượt qua tất cả mà không mất mạng nào?
+            </p>
+
+            <div class="flex gap-4 mb-10">
+                <div class="bg-rose-100 text-rose-500 px-4 py-2 rounded-xl font-bold flex items-center gap-2"><i class="fas fa-heart"></i> x3 Mạng</div>
+                <div class="bg-blue-100 text-blue-500 px-4 py-2 rounded-xl font-bold flex items-center gap-2"><i class="fas fa-bolt"></i> x3 Kỹ năng</div>
+            </div>
+            
+            <button id="btn-start" class="btn text-xl px-12 py-4 flex items-center gap-3">
+                <i class="fas fa-play"></i> BẮT ĐẦU CHƠI
+            </button>
+        </div>
+
+        <!-- MÀN HÌNH CHƠI QUIZ -->
+        <div id="quiz-screen" class="flex-1 flex-col p-6 md:p-10 hidden relative">
+            
+            <!-- Header Quiz: Trái tim & Tiến trình -->
+            <div class="flex justify-between items-center mb-4 pb-4 border-b border-slate-200">
+                <!-- Hệ thống Mạng (Hearts) -->
+                <div class="flex items-center gap-2 bg-rose-50 px-4 py-2 rounded-2xl border border-rose-200 shadow-sm">
+                    <span class="text-rose-400 font-bold mr-1 hidden sm:inline">Sinh tồn:</span>
+                    <div id="lives-container" class="flex gap-1 text-2xl text-rose-500 drop-shadow-sm">
+                        <i class="fas fa-heart heart-icon" id="heart-1"></i>
+                        <i class="fas fa-heart heart-icon" id="heart-2"></i>
+                        <i class="fas fa-heart heart-icon" id="heart-3"></i>
+                    </div>
+                </div>
+                
+                <div class="bg-white px-5 py-2 rounded-2xl border border-slate-200 flex items-center shadow-sm">
+                    <span class="text-slate-400 font-bold mr-2 uppercase text-sm">Câu hỏi</span>
+                    <span id="quiz-progress-text" class="text-purple-600 font-black text-xl">1/20</span>
+                </div>
+            </div>
+            
+            <!-- Khay Thẻ Bài (Power-ups) -->
+            <div class="flex justify-center gap-6 mb-6">
+                <button id="btn-pu-5050" class="powerup-btn pu-5050" onclick="useFiftyFifty()" data-tip="Hố Đen: Xóa 2 đáp án sai">
+                    <i class="fas fa-star-half-alt"></i>
+                </button>
+                <button id="btn-pu-shield" class="powerup-btn pu-shield" onclick="useShield()" data-tip="Khiên Bảo Vệ: Chống 1 lần chọn sai">
+                    <i class="fas fa-shield-alt"></i>
+                </button>
+                <button id="btn-pu-hint" class="powerup-btn pu-hint" onclick="useHint()" data-tip="Radar: Hiện gợi ý">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+
+            <!-- Thanh tiến trình -->
+            <div class="w-full bg-slate-100 h-3 rounded-full mb-8 overflow-hidden shadow-inner border border-slate-200">
+                <div id="quiz-progress-bar" class="bg-gradient-to-r from-purple-400 to-pink-400 h-full w-[5%] transition-all duration-500 rounded-full"></div>
+            </div>
+            
+            <!-- Khu vực Nội dung Câu hỏi -->
+            <div id="quiz-playing-area" class="flex-1 flex flex-col fade-in transition-all duration-300 rounded-3xl border-[4px] border-transparent p-2 -m-2">
+                
+                <!-- Hint Box (Ẩn mặc định) -->
+                <div id="hint-box" class="hidden bg-emerald-50 border border-emerald-200 p-4 rounded-2xl mb-6 shadow-sm">
+                    <div class="text-emerald-600 font-bold text-sm mb-1 uppercase flex items-center"><i class="fas fa-lightbulb mr-2"></i> Gợi ý từ Radar:</div>
+                    <div id="hint-text" class="text-emerald-800 font-semibold"></div>
+                </div>
+
+                <div class="text-center font-black text-2xl md:text-3xl text-slate-700 leading-relaxed mb-8 drop-shadow-sm" id="question-text">
+                    Nội dung câu hỏi hiển thị ở đây?
+                </div>
+                
+                <!-- Khu vực lựa chọn -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 content-start" id="question-options">
+                    <!-- Nút bấm tạo bằng JS -->
+                </div>
+            </div>
+
+            <!-- Lớp phủ Giải thích (Sau khi trả lời) -->
+            <div id="quiz-feedback-overlay" class="absolute inset-0 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 z-20 hidden rounded-3xl">
+                <div id="feedback-icon" class="text-7xl mb-4 transition-transform duration-300 transform scale-50 opacity-0"></div>
+                <h3 id="feedback-title" class="text-4xl font-black mb-4 tracking-wide text-green-500">Chính xác!</h3>
+                
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6 max-w-2xl w-full text-center shadow-lg mb-8">
+                    <p id="feedback-desc" class="text-slate-600 font-semibold text-lg leading-relaxed">Giải thích thêm...</p>
+                </div>
+                
+                <button id="btn-next-question" class="btn text-xl px-12 py-4">
+                    Tiếp tục <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- MÀN HÌNH GAME OVER -->
+        <div id="game-over-screen" class="flex-1 flex-col items-center justify-center text-center p-8 hidden relative z-20">
+            <div class="w-32 h-32 bg-rose-100 rounded-full flex items-center justify-center mb-6 shadow-xl border-4 border-rose-300 mx-auto">
+                <i class="fas fa-heart-crack text-6xl text-rose-500 animate-pulse"></i>
+            </div>
+            
+            <h2 class="title-font text-4xl md:text-5xl font-black text-rose-600 mb-2">GAME OVER!</h2>
+            <p class="text-xl text-slate-600 mb-8 font-bold">Bạn đã hết trái tim sinh tồn.</p>
+            
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-8 max-w-md w-full shadow-lg mb-10 mx-auto">
+                <div class="text-slate-400 font-bold uppercase tracking-widest text-sm mb-2">Bạn dừng chân ở câu hỏi</div>
+                <div class="text-5xl font-black text-slate-700" id="game-over-score">5/20</div>
+            </div>
+            
+            <button class="btn btn-restart text-lg mx-auto flex items-center gap-2">
+                <i class="fas fa-redo-alt"></i> Thử sức lại từ đầu
+            </button>
+        </div>
+
+        <!-- MÀN HÌNH CHIẾN THẮNG -->
+        <div id="result-screen" class="flex-1 flex-col items-center justify-center text-center p-8 hidden relative z-20">
+            <div class="w-32 h-32 bg-yellow-100 rounded-full flex items-center justify-center mb-6 shadow-xl border-4 border-yellow-300 mx-auto">
+                <i class="fas fa-trophy text-6xl text-yellow-500"></i>
+            </div>
+            
+            <h2 class="title-font text-4xl md:text-5xl font-black text-purple-600 mb-2">CHIẾN THẮNG!</h2>
+            <p class="text-xl text-slate-600 mb-8 font-bold">Bạn đã sinh tồn thành công qua 20 nguyên tố!</p>
+            
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-8 max-w-md w-full shadow-lg mb-10 mx-auto">
+                <div class="text-slate-400 font-bold uppercase tracking-widest text-sm mb-2">Mạng sống còn lại</div>
+                <div class="text-4xl font-black text-rose-500 flex justify-center gap-2 mt-2" id="win-hearts-display">
+                    <!-- Trái tim còn lại -->
+                </div>
+            </div>
+            
+            <button class="btn btn-restart text-lg mx-auto flex items-center gap-2">
+                <i class="fas fa-medal"></i> Chơi lại để đạt 3 tim
+            </button>
+        </div>
+
+    </div>
+</main>
+
+<script>
+    // --- DATABASE: 20 CÂU HỎI (Phiên bản thuần Text, tập trung vào kiến thức) ---
+    const quizData = [
+        { q: "Nguyên tố nào nhẹ nhất trong vũ trụ, là nhiên liệu chính cho các vì sao?", options: ["Oxygen", "Helium", "Hydrogen", "Nitrogen"], correctIndex: 2, explanation: "Hydrogen (H) là nguyên tố nhẹ nhất (Z=1) và phổ biến nhất trong vũ trụ." },
+        { q: "Khí nào nhẹ hơn không khí, hoàn toàn không cháy và thường được bơm vào khinh khí cầu?", options: ["Helium", "Hydrogen", "Oxygen", "Carbon dioxide"], correctIndex: 0, explanation: "Helium (He) là khí hiếm, rất nhẹ và an toàn (không bắt lửa) để bơm bóng bay." },
+        { q: "Kim loại kiềm nào nhẹ nhất, nổi trên dầu hỏa và là thành phần chính của pin điện thoại, xe điện hiện nay?", options: ["Sodium", "Lithium", "Potassium", "Magnesium"], correctIndex: 1, explanation: "Lithium (Li) siêu nhẹ và có khả năng tích trữ năng lượng tuyệt vời, dùng làm pin Lithium-ion." },
+        { q: "Kim loại kiềm thổ nào cực nhẹ, hợp chất có vị ngọt (nhưng độc), thường pha với đồng làm dụng cụ chống phát tia lửa?", options: ["Beryllium", "Magnesium", "Calcium", "Boron"], correctIndex: 0, explanation: "Beryllium (Be) có muối vị ngọt. Hợp kim Be-Cu cực kỳ cứng và không xẹt lửa khi va đập." },
+        { q: "Nguyên tố á kim nào có trong thành phần thuốc nhỏ mắt sát khuẩn và thủy tinh chịu nhiệt siêu bền?", options: ["Carbon", "Silicon", "Phosphorus", "Boron"], correctIndex: 3, explanation: "Boron (B) tạo ra axit boric dùng để sát khuẩn và thủy tinh borosilicate chịu nhiệt." },
+        { q: "Nguyên tố nào là nền tảng của mọi hợp chất hữu cơ và sự sống trên Trái Đất, có thù hình là than chì và kim cương?", options: ["Oxygen", "Nitrogen", "Carbon", "Silicon"], correctIndex: 2, explanation: "Carbon (C) có khả năng liên kết đa dạng tạo thành vô số mạch phân tử sinh học." },
+        { q: "Chất khí vô hình nào rất trơ ở điều kiện thường và chiếm khoảng 78% thể tích bầu khí quyển Trái Đất?", options: ["Oxygen", "Helium", "Carbon dioxide", "Nitrogen"], correctIndex: 3, explanation: "Nitrogen (N2) chiếm phần lớn khí quyển, giúp pha loãng Oxy để giảm tốc độ cháy." },
+        { q: "Nguyên tố phi kim nào chiếm khoảng 21% khí quyển, không thể thiếu để duy trì sự sống và sự cháy?", options: ["Oxygen", "Nitrogen", "Fluorine", "Hydrogen"], correctIndex: 0, explanation: "Oxygen (O) có tính oxi hóa mạnh, là khí duy trì hô hấp và sự cháy." },
+        { q: "Phi kim nào hoạt động mạnh nhất, có độ âm điện lớn nhất, hợp chất thường có trong kem đánh răng?", options: ["Chlorine", "Fluorine", "Oxygen", "Sulfur"], correctIndex: 1, explanation: "Fluorine (F) cực kỳ hoạt động. Một lượng nhỏ ion Florua giúp men răng chắc khỏe." },
+        { q: "Khí hiếm nào thường được nạp vào các ống đèn quảng cáo ban đêm, phát ra ánh sáng màu đỏ cam rực rỡ?", options: ["Argon", "Krypton", "Neon", "Helium"], correctIndex: 2, explanation: "Khí Neon (Ne) khi bị kích thích bằng điện sẽ phát ra bức xạ ánh sáng đỏ cam đặc trưng." },
+        { q: "Kim loại kiềm nào mềm, phải bảo quản trong dầu hỏa và kết hợp với Clo tạo thành muối ăn?", options: ["Lithium", "Sodium", "Potassium", "Calcium"], correctIndex: 1, explanation: "Sodium (Natri - Na) phản ứng rất mạnh với nước và tạo muối ăn NaCl." },
+        { q: "Kim loại nào bốc cháy với ngọn lửa màu trắng chói lóa, thường dùng trong pháo sáng và hợp kim nhẹ?", options: ["Aluminum", "Magnesium", "Calcium", "Iron"], correctIndex: 1, explanation: "Magnesium (Mg) cháy phát ra ánh sáng trắng rực rỡ giàu tia cực tím." },
+        { q: "Kim loại nào phổ biến nhất trong vỏ Trái Đất, nhẹ, dẫn điện tốt và không gỉ nhờ lớp oxit bảo vệ?", options: ["Aluminum", "Iron", "Copper", "Zinc"], correctIndex: 0, explanation: "Aluminum (Nhôm - Al) được bảo vệ bởi lớp Al2O3 cực mỏng, đặc khít nên rất bền." },
+        { q: "Nguyên tố á kim nào là vật liệu sống còn để sản xuất chip vi xử lý máy tính và pin mặt trời?", options: ["Carbon", "Germanium", "Silicon", "Boron"], correctIndex: 2, explanation: "Silicon (Si - Silic) là chất bán dẫn tuyệt vời, làm nền tảng cho ngành công nghiệp điện tử." },
+        { q: "Nguyên tố nào thù hình màu đỏ an toàn dùng làm vỏ bao diêm, thù hình trắng lại tự bốc cháy trong không khí?", options: ["Sulfur", "Carbon", "Phosphorus", "Nitrogen"], correctIndex: 2, explanation: "Phosphorus (P) có 2 dạng thù hình phổ biến là Phốt pho đỏ (làm diêm) và Phốt pho trắng (độc, dễ cháy)." },
+        { q: "Phi kim nào rắn màu vàng chanh, thường được dùng để lưu hóa cao su và sản xuất axit?", options: ["Phosphorus", "Sulfur", "Silicon", "Chlorine"], correctIndex: 1, explanation: "Sulfur (Lưu huỳnh - S) có màu vàng đặc trưng, khi cháy sinh khí SO2 mùi hắc." },
+        { q: "Khí màu vàng lục, rất độc, diệt khuẩn cực mạnh, dùng để xử lý nước máy, nước bể bơi là gì?", options: ["Fluorine", "Oxygen", "Nitrogen", "Chlorine"], correctIndex: 3, explanation: "Khí Chlorine (Clo - Cl2) tan vào nước tạo axit hipoclorơ có tính tẩy màu diệt khuẩn." },
+        { q: "Khí hiếm nào chiếm gần 1% khí quyển (nhiều nhất trong các khí hiếm) và được nạp vào bóng đèn sợi đốt?", options: ["Argon", "Neon", "Helium", "Krypton"], correctIndex: 0, explanation: "Argon (Ar) hoàn toàn trơ, giúp bảo vệ dây tóc bóng đèn không bị oxi hóa." },
+        { q: "Kim loại kiềm nào phản ứng vô cùng mãnh liệt với nước, ngọn lửa sinh ra có màu tím (lilac)?", options: ["Sodium", "Potassium", "Lithium", "Calcium"], correctIndex: 1, explanation: "Potassium (Kali - K) hoạt động rất mạnh, đốt cháy khí H2 sinh ra ngọn lửa màu tím đặc trưng." },
+        { q: "Kim loại kiềm thổ nào là thành phần vô cơ chính cấu tạo nên xương, răng và đá vôi?", options: ["Magnesium", "Barium", "Calcium", "Strontium"], correctIndex: 2, explanation: "Calcium (Canxi - Ca) là thành phần cấu tạo nên canxi photphat trong xương và CaCO3 trong đá vôi." }
+    ];
+
+    // --- GAME STATE VARIABLES ---
+    let currentQuestionIndex = 0;
+    let lives = 3;
+    let powerUps = { fifty: true, shield: true, hint: true };
+    let isShieldActive = false;
+    let currentAnswerCorrect = false;
+    let isGameOver = false;
+
+    // --- AUDIO SYSTEM (Tone.js) ---
+    let audioInitialized = false;
+    const sfx = {
+        click: null, correct: null, wrong: null, damage: null, shieldHit: null, powerup: null, gameOver: null, win: null,
+        init: async function() {
+            if(audioInitialized) return;
+            await Tone.start();
+            this.click = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 } }).toDestination(); this.click.volume.value = -10;
+            this.correct = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 1 } }).toDestination(); this.correct.volume.value = -8;
+            this.wrong = new Tone.FMSynth({ harmonicity: 0.5, modulationIndex: 2, oscillator: { type: 'sawtooth' }, envelope: { attack: 0.05, decay: 0.3, sustain: 0.1, release: 0.2 } }).toDestination(); this.wrong.volume.value = -12;
+            
+            // Âm thanh sinh tồn mới
+            this.damage = new Tone.MembraneSynth({ pitchDecay: 0.2, octaves: 4, oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.4, sustain: 0, release: 0.1 } }).toDestination(); this.damage.volume.value = -5;
+            this.shieldHit = new Tone.MetalSynth({ frequency: 200, envelope: { attack: 0.01, decay: 0.1, release: 0.2 }, harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5 }).toDestination(); this.shieldHit.volume.value = -10;
+            this.powerup = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.05, decay: 0.1, sustain: 0.3, release: 1 } }).toDestination(); this.powerup.volume.value = -5;
+            
+            this.gameOver = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'sawtooth' }, envelope: { attack: 0.1, decay: 0.5, sustain: 0.2, release: 2 } }).toDestination(); this.gameOver.volume.value = -5;
+            this.win = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'sine' }, envelope: { attack: 0.1, decay: 0.2, sustain: 0.4, release: 2 } }).toDestination(); this.win.volume.value = -8;
+            audioInitialized = true;
+        },
+        playClick: () => { if(audioInitialized) sfx.click.triggerAttackRelease("C5", "32n"); },
+        playCorrect: () => { if(audioInitialized) { const now = Tone.now(); sfx.correct.triggerAttackRelease("C5", "16n", now); sfx.correct.triggerAttackRelease("E5", "16n", now + 0.1); sfx.correct.triggerAttackRelease("G5", "16n", now + 0.2); sfx.correct.triggerAttackRelease("C6", "8n", now + 0.35); } },
+        playWrong: () => { if(audioInitialized) sfx.wrong.triggerAttackRelease("C3", "4n"); },
+        playDamage: () => { if(audioInitialized) sfx.damage.triggerAttackRelease("C2", "8n"); },
+        playShieldHit: () => { if(audioInitialized) sfx.shieldHit.triggerAttackRelease("16n"); },
+        playPowerup: () => { if(audioInitialized) { const now = Tone.now(); sfx.powerup.triggerAttackRelease("G5", "16n", now); sfx.powerup.triggerAttackRelease("C6", "8n", now+0.1); } },
+        playGameOver: () => { if(audioInitialized) { const now = Tone.now(); sfx.gameOver.triggerAttackRelease(["C4", "Eb4", "G4"], "2n", now); sfx.gameOver.triggerAttackRelease(["Bb3", "Db4", "F4"], "2n", now+0.5); sfx.gameOver.triggerAttackRelease(["Ab3", "C4", "Eb4"], "1n", now+1.0); } },
+        playWin: () => { if(audioInitialized) { const now = Tone.now(); sfx.win.triggerAttackRelease(["C5", "E5", "G5"], "4n", now); sfx.win.triggerAttackRelease(["F5", "A5", "C6"], "4n", now + 0.5); sfx.win.triggerAttackRelease(["G5", "B5", "D6"], "4n", now + 1.0); sfx.win.triggerAttackRelease(["C6", "E6", "G6", "C7"], "1n", now + 1.5); } }
+    };
+
+    // --- CONFETTI SYSTEM ---
+    function createConfetti() {
+        const container = document.createElement('div');
+        container.className = 'confetti-container';
+        const colors = ['#f472b6', '#c084fc', '#38bdf8', '#facc15', '#4ade80'];
+        for (let i = 0; i < 60; i++) {
+            const wrap = document.createElement('div'); wrap.className = 'confetti-x';
+            const conf = document.createElement('div'); conf.className = 'confetti-y ' + (Math.random() > 0.5 ? 'rounded-full' : 'rounded-sm');
+            conf.style.width = (6 + Math.random() * 8) + 'px'; conf.style.height = (10 + Math.random() * 12) + 'px';
+            conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            wrap.style.setProperty('--endX', (30 + Math.random() * 70) + 'vw');
+            const dur = (1.5 + Math.random() * 2) + 's'; wrap.style.setProperty('--dur', dur); conf.style.setProperty('--dur', dur);
+            conf.style.setProperty('--peakY', (50 + Math.random() * 50) + 'vh');
+            conf.style.setProperty('--rot', (Math.random() * 1080 - 540) + 'deg');
+            wrap.appendChild(conf); container.appendChild(wrap);
+        }
+        document.body.appendChild(container);
+        setTimeout(() => container.remove(), 3500);
+    }
+
+    // --- GAME LOGIC ---
+    const startScreen = document.getElementById('start-screen');
+    const quizScreen = document.getElementById('quiz-screen');
+    const gameOverScreen = document.getElementById('game-over-screen');
+    const resultScreen = document.getElementById('result-screen');
+    const mainContainer = document.getElementById('main-container');
+    const playingArea = document.getElementById('quiz-playing-area');
+
+    document.getElementById('btn-start').addEventListener('click', () => {
+        sfx.init(); sfx.playClick();
+        startScreen.classList.add('hidden');
+        quizScreen.classList.remove('hidden'); quizScreen.classList.add('flex');
+        startGame();
+    });
+
+    document.querySelectorAll('.btn-restart').forEach(btn => {
+        btn.addEventListener('click', () => {
+            sfx.playClick();
+            gameOverScreen.classList.add('hidden'); gameOverScreen.classList.remove('flex');
+            resultScreen.classList.add('hidden'); resultScreen.classList.remove('flex');
+            quizScreen.classList.remove('hidden'); quizScreen.classList.add('flex');
+            startGame();
+        });
+    });
+
+    function startGame() {
+        currentQuestionIndex = 0;
+        lives = 3; isGameOver = false;
+        powerUps = { fifty: true, shield: true, hint: true };
+        
+        // Reset UI Mạng & Thẻ bài
+        for(let i=1; i<=3; i++) document.getElementById(`heart-${i}`).classList.remove('heart-lost');
+        document.querySelectorAll('.powerup-btn').forEach(btn => btn.classList.remove('used'));
+        
+        loadQuestion(currentQuestionIndex);
+    }
+
+    function loadQuestion(index) {
+        if(isGameOver) return;
+        const qData = quizData[index];
+        
+        // Trạng thái Khiên chỉ bảo vệ 1 câu, qua câu mới mất
+        isShieldActive = false;
+        playingArea.classList.remove('shield-active-glow');
+        document.getElementById('hint-box').classList.add('hidden');
+        
+        // Progress UI
+        document.getElementById('quiz-progress-text').innerText = `${index + 1}/${quizData.length}`;
+        document.getElementById('quiz-progress-bar').style.width = `${((index + 1) / quizData.length) * 100}%`;
+        
+        // Question Text
+        playingArea.classList.remove('fade-in'); void playingArea.offsetWidth; playingArea.classList.add('fade-in');
+        document.getElementById('question-text').innerHTML = qData.q;
+        
+        // Options
+        const optionsGrid = document.getElementById('question-options');
+        optionsGrid.innerHTML = '';
+        
+        qData.options.forEach((opt, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn group';
+            btn.dataset.index = idx;
+            const letter = String.fromCharCode(65 + idx);
+            btn.innerHTML = `
+                <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mr-4 group-hover:bg-purple-500 group-hover:text-white transition-colors text-xl font-black shadow-inner border border-slate-200 shrink-0">
+                    ${letter}
+                </div>
+                <span class="text-xl text-slate-700 group-hover:text-slate-900">${opt}</span>
+            `;
+            btn.onclick = () => handleAnswerSelect(idx, btn, qData);
+            optionsGrid.appendChild(btn);
+        });
+    }
+
+    // --- POWER-UP LOGIC ---
+    window.useFiftyFifty = function() {
+        if(!powerUps.fifty || isGameOver) return;
+        sfx.playPowerup();
+        powerUps.fifty = false;
+        document.getElementById('btn-pu-5050').classList.add('used');
+        
+        const qData = quizData[currentQuestionIndex];
+        let wrongIndices = [0,1,2,3].filter(i => i !== qData.correctIndex);
+        wrongIndices.sort(() => 0.5 - Math.random()); // Shuffle
+        
+        const btns = document.querySelectorAll('.option-btn');
+        btns[wrongIndices[0]].style.opacity = '0.3'; btns[wrongIndices[0]].style.pointerEvents = 'none';
+        btns[wrongIndices[1]].style.opacity = '0.3'; btns[wrongIndices[1]].style.pointerEvents = 'none';
+    }
+
+    window.useShield = function() {
+        if(!powerUps.shield || isGameOver) return;
+        sfx.playPowerup();
+        powerUps.shield = false;
+        isShieldActive = true;
+        document.getElementById('btn-pu-shield').classList.add('used');
+        playingArea.classList.add('shield-active-glow');
+    }
+
+    window.useHint = function() {
+        if(!powerUps.hint || isGameOver) return;
+        sfx.playPowerup();
+        powerUps.hint = false;
+        document.getElementById('btn-pu-hint').classList.add('used');
+        
+        const hintBox = document.getElementById('hint-box');
+        const hintText = document.getElementById('hint-text');
+        hintText.innerText = quizData[currentQuestionIndex].explanation;
+        hintBox.classList.remove('hidden');
+        hintBox.classList.add('fade-in');
+    }
+
+    function handleAnswerSelect(selectedIndex, btnElement, qData) {
+        const isCorrect = (selectedIndex === qData.correctIndex);
+        
+        if (isCorrect) {
+            currentAnswerCorrect = true;
+            sfx.playCorrect(); createConfetti();
+            
+            // Xóa khiên nếu qua câu
+            isShieldActive = false; playingArea.classList.remove('shield-active-glow');
+            
+            const allBtns = document.querySelectorAll('.option-btn');
+            allBtns.forEach(b => { b.disabled = true; b.classList.add('opacity-70', 'cursor-not-allowed'); });
+            
+            btnElement.classList.add('correct');
+            btnElement.classList.remove('opacity-70');
+            
+            showOverlayFeedback(true, qData.explanation);
+        } else {
+            currentAnswerCorrect = false;
+            
+            if (isShieldActive) {
+                // KHIÊN ĐỠ ĐÒN
+                sfx.playShieldHit();
+                isShieldActive = false;
+                playingArea.classList.remove('shield-active-glow');
+                
+                btnElement.classList.add('wrong');
+                btnElement.disabled = true;
+                btnElement.classList.add('opacity-50', 'cursor-not-allowed');
+                
+                // Báo hiệu khiên vỡ
+                mainContainer.classList.add('shake-animation');
+                setTimeout(() => mainContainer.classList.remove('shake-animation'), 500);
+            } else {
+                // MẤT MÁU
+                lives--;
+                sfx.playDamage();
+                
+                // Cập nhật UI Trái tim
+                if(lives >= 0) document.getElementById(`heart-${lives + 1}`).classList.add('heart-lost');
+                
+                // Hiệu ứng đỏ màn hình
+                const overlay = document.getElementById('damage-overlay');
+                overlay.style.opacity = '0.3';
+                mainContainer.classList.add('shake-animation');
+                setTimeout(() => { overlay.style.opacity = '0'; mainContainer.classList.remove('shake-animation'); }, 400);
+
+                btnElement.classList.add('wrong');
+                btnElement.disabled = true;
+                btnElement.classList.add('opacity-50', 'cursor-not-allowed');
+
+                if (lives <= 0) {
+                    isGameOver = true;
+                    setTimeout(showGameOver, 1000);
+                }
+            }
+        }
+    }
+
+    function showOverlayFeedback(isCorrect, explanation) {
+        const overlay = document.getElementById('quiz-feedback-overlay');
+        const icon = document.getElementById('feedback-icon');
+        
+        overlay.classList.remove('hidden');
+        
+        icon.innerHTML = '<i class="fas fa-check-circle text-green-500"></i>';
+        icon.classList.remove('scale-50', 'opacity-0'); icon.classList.add('scale-100', 'opacity-100');
+        
+        document.getElementById('feedback-desc').innerHTML = `<span class="font-bold text-green-600 block mb-2">Đúng rồi!</span>${explanation}`;
+    }
+
+    document.getElementById('btn-next-question').addEventListener('click', () => {
+        sfx.playClick();
+        const overlay = document.getElementById('quiz-feedback-overlay');
+        const icon = document.getElementById('feedback-icon');
+        
+        overlay.classList.add('hidden');
+        icon.classList.replace('scale-100', 'scale-50'); icon.classList.replace('opacity-100', 'opacity-0');
+        
+        currentQuestionIndex++;
+        if (currentQuestionIndex < quizData.length) {
+            loadQuestion(currentQuestionIndex);
+        } else {
+            showWinScreen();
+        }
+    });
+
+    function showGameOver() {
+        sfx.playGameOver();
+        quizScreen.classList.add('hidden'); quizScreen.classList.remove('flex');
+        gameOverScreen.classList.remove('hidden'); gameOverScreen.classList.add('flex');
+        document.getElementById('game-over-score').innerText = `${currentQuestionIndex + 1}/20`;
+    }
+
+    function showWinScreen() {
+        sfx.playWin(); createConfetti(); setTimeout(createConfetti, 1000);
+        quizScreen.classList.add('hidden'); quizScreen.classList.remove('flex');
+        resultScreen.classList.remove('hidden'); resultScreen.classList.add('flex');
+        
+        const heartsDisplay = document.getElementById('win-hearts-display');
+        heartsDisplay.innerHTML = '';
+        for(let i=0; i<3; i++) {
+            if(i < lives) heartsDisplay.innerHTML += '<i class="fas fa-heart text-rose-500"></i>';
+            else heartsDisplay.innerHTML += '<i class="fas fa-heart text-slate-300"></i>';
+        }
+    }
+
+</script>
+</body>
+</html>
